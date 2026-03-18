@@ -11,6 +11,7 @@ import { BudgetManager } from './components/BudgetManager';
 import { SavingsGoalsManager } from './components/SavingsGoalsManager';
 import { AnnualTrends } from './components/AnnualTrends';
 import { InstallPrompt } from './components/InstallPrompt';
+import { SupportButton } from './components/SupportButton';
 import { Auth } from './components/Auth';
 import { Sidebar } from './components/Sidebar';
 import { FierceDashboard } from './components/FierceDashboard';
@@ -69,14 +70,43 @@ function App() {
         .order('date', { ascending: false });
 
       if (txData) {
-        setTransactions(txData.map(t => ({
+        let formattedTxs = txData.map(t => ({
           ...t,
           paymentMethod: t.payment_method,
           isRecurring: t.is_recurring,
           recurrenceId: t.recurrence_id,
           installmentId: t.installment_id,
           isPaid: t.is_paid
-        })));
+        }));
+
+        const now = new Date();
+        const currentYear = now.getUTCFullYear();
+        const currentMonth = now.getUTCMonth();
+        const startOfCurrentMonth = new Date(Date.UTC(currentYear, currentMonth, 1, 12, 0, 0, 0));
+
+        let hasUpdates = false;
+
+        formattedTxs = formattedTxs.map(t => {
+          const tDate = new Date(t.date);
+          const isPastMonth = tDate.getUTCFullYear() < currentYear || (tDate.getUTCFullYear() === currentYear && tDate.getUTCMonth() < currentMonth);
+          
+          if (t.isPaid === false && isPastMonth) {
+            const newDateIso = startOfCurrentMonth.toISOString();
+            hasUpdates = true;
+            
+            // Fire and forget DB update
+            supabase.from('transactions').update({ date: newDateIso }).eq('id', t.id).then();
+            
+            return { ...t, date: newDateIso };
+          }
+          return t;
+        });
+
+        if (hasUpdates) {
+          formattedTxs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        }
+
+        setTransactions(formattedTxs);
       }
 
       // 2. Fetch recurring defaults
@@ -548,6 +578,7 @@ function App() {
           onSave={handleAddRecurring}
           onDelete={handleDeleteRecurring}
         />
+        <SupportButton />
       </div>
     );
   }
@@ -678,6 +709,7 @@ function App() {
         onSave={handleAddRecurring}
         onDelete={handleDeleteRecurring}
       />
+      <SupportButton />
     </div>
   );
 }

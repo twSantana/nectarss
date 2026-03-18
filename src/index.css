@@ -97,6 +97,19 @@ body {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 2s infinite ease-in-out;
+}
+
 /* Common Components */
 input,
 select {
