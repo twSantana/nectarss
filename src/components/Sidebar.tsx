@@ -1,4 +1,4 @@
-import { Home, Wallet, PieChart, TrendingUp, HelpCircle, Palette } from 'lucide-react';
+import { Home, Wallet, PieChart, Target, Palette } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
 import { UserProfile } from './UserProfile';
 
@@ -13,11 +13,10 @@ interface SidebarProps {
 
 export function Sidebar({ activeSection, setActiveSection, session, onOpenRecurring, theme, onToggleTheme }: SidebarProps) {
     const menuItems = [
-        { id: 'home', label: 'Home', icon: Home },
-        { id: 'cash', label: 'Cash', icon: Wallet },
-        { id: 'budgets', label: 'Budgets', icon: PieChart },
-        { id: 'invest', label: 'Invest', icon: TrendingUp },
-        { id: 'help', label: 'Help', icon: HelpCircle },
+        { id: 'home', label: 'Início', icon: Home },
+        { id: 'transactions', label: 'Transações', icon: Wallet },
+        { id: 'goals', label: 'Metas', icon: Target },
+        { id: 'reports', label: 'Relatórios', icon: PieChart },
     ];
 
     return (

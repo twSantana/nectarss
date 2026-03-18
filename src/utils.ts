@@ -6,6 +6,7 @@ export type Category =
     | 'transporte'
     | 'saude'
     | 'salario'
+    | 'cartao_credito'
     | 'outros';
 
 export function getCategoryFromDescription(description: string, type: 'income' | 'expense'): Category {
@@ -87,6 +88,17 @@ export function getCategoryFromDescription(description: string, type: 'income' |
         'bonus': 'salario',
         'rendimento': 'salario',
         'adiantamento': 'salario',
+
+        'cartao': 'cartao_credito',
+        'cartão': 'cartao_credito',
+        'fatura': 'cartao_credito',
+        'nubank': 'cartao_credito',
+        'itau': 'cartao_credito',
+        'itaú': 'cartao_credito',
+        'bradesco': 'cartao_credito',
+        'santander': 'cartao_credito',
+        'inter': 'cartao_credito',
+
         'pix': 'outros'
     };
 
@@ -107,5 +119,6 @@ export const CATEGORY_LABELS: Record<Category, string> = {
     'transporte': 'Transporte 🚗',
     'saude': 'Saúde 💊',
     'salario': 'Salário 💰',
+    'cartao_credito': 'Cartão de Crédito 💳',
     'outros': 'Outros 📦'
 };

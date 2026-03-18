@@ -305,10 +305,10 @@ function App() {
   };
 
   const handleTogglePaid = async (id: string, currentStatus: boolean) => {
-    const { data, error } = await supabase.from('transactions').update({ is_paid: !currentStatus }).eq('id', id).select();
+    const { error } = await supabase.from('transactions').update({ is_paid: !currentStatus }).eq('id', id);
     if (error) {
       alert(`Erro ao atualizar status: ${error.message}`);
-    } else if (data && data.length > 0) {
+    } else {
       setTransactions(prev => prev.map(t =>
         t.id === id ? { ...t, isPaid: !currentStatus } : t
       ));
@@ -444,10 +444,13 @@ function App() {
           <header className="fierce-header">
             <div>
               <h1 style={{ fontSize: '28px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>
-                Hi {session.user.email?.split('@')[0]}, 👋
+                Olá {session.user.email?.split('@')[0]}, 👋
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                Welcome back, here's what's happening today.
+                {activeSection === 'home' && "Bem-vindo de volta, aqui está o resumo de hoje."}
+                {activeSection === 'transactions' && "Registre e acompanhe suas transações."}
+                {activeSection === 'goals' && "Acompanhe e defina suas metas financeiras."}
+                {activeSection === 'reports' && "Veja análises detalhadas das suas finanças."}
               </p>
             </div>
             <div className="fierce-header-actions">
@@ -463,39 +466,78 @@ function App() {
                 }}
                 onClick={handleExportCSV}
               >
-                Export Data
+                Exportar CSV
               </button>
-              {/* Add New Transaction button will go here */}
             </div>
           </header>
 
-          <div className="fierce-grid">
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <FierceDashboard
-                transactions={monthTransactions}
-                previousTransactions={previousMonthTransactions}
-              />
-              <FierceCards transactions={monthTransactions} />
+          {activeSection === 'home' && (
+            <div className="fierce-grid animate-fade-in">
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <FierceDashboard
+                  transactions={monthTransactions}
+                  previousTransactions={previousMonthTransactions}
+                />
+                <FierceCards transactions={monthTransactions} />
 
-              <div style={{ marginTop: '24px' }}>
-                <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', marginBottom: '24px' }}>Recent Activity</h3>
-                <TransactionForm onAdd={handleAddTransaction} />
                 <div style={{ marginTop: '24px' }}>
-                  <FierceTransactionList
-                    transactions={displayedTransactions}
-                    onDelete={handleDeleteTransaction}
-                    onEdit={handleEditTransaction}
-                    onTogglePaid={handleTogglePaid}
-                  />
+                  <h3 style={{ fontSize: '20px', fontWeight: 600, color: '#fff', marginBottom: '24px' }}>Atividade Recente</h3>
+                  <div style={{ marginTop: '24px' }}>
+                    <FierceTransactionList
+                      transactions={displayedTransactions.slice(0, 5)}
+                      onDelete={handleDeleteTransaction}
+                      onEdit={handleEditTransaction}
+                      onTogglePaid={handleTogglePaid}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <FierceRewards transactions={monthTransactions} />
-              <FierceUpcomingBills recurringTransactions={recurringTransactions} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                <FierceRewards transactions={monthTransactions} />
+                <FierceUpcomingBills recurringTransactions={recurringTransactions} />
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeSection === 'transactions' && (
+            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <TransactionForm onAdd={handleAddTransaction} />
+              <div style={{ marginTop: '8px' }}>
+                <FierceTransactionList
+                  transactions={displayedTransactions}
+                  onDelete={handleDeleteTransaction}
+                  onEdit={handleEditTransaction}
+                  onTogglePaid={handleTogglePaid}
+                />
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'goals' && (
+            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <SavingsGoalsManager
+                goals={savingsGoals}
+                onAddGoal={handleAddSavingsGoal}
+                onUpdateAmount={handleUpdateSavingsAmount}
+                onDeleteGoal={handleDeleteSavingsGoal}
+              />
+              <BudgetManager 
+                transactions={monthTransactions} 
+                budgets={budgets}
+                onAddBudget={handleAddBudget}
+                onUpdateBudget={handleUpdateBudget}
+                onRemoveBudget={handleRemoveBudget}
+              />
+            </div>
+          )}
+
+          {activeSection === 'reports' && (
+             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+               <AnnualTrends transactions={transactions} currentYear={currentYear} />
+               <CategorySummary transactions={monthTransactions} />
+             </div>
+          )}
         </main>
 
         <InstallPrompt />

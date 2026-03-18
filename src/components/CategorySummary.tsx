@@ -28,14 +28,15 @@ export function CategorySummary({ transactions }: CategorySummaryProps) {
 
     // Colors for the pie chart
     const pieColors: Record<Category, string> = {
-        'casa': '#3B82F6', // Blue
-        'alimentacao': '#F59E0B', // Amber
-        'transporte': '#6366F1', // Indigo
-        'fastfood': '#EF4444', // Red
-        'lazer': '#8B5CF6', // Purple
-        'saude': '#10B981', // Emerald
-        'salario': '#10B981', // Not really used for expenses
-        'outros': '#64748B' // Slate
+        casa: '#3b82f6',
+        alimentacao: '#10b981',
+        transporte: '#f59e0b',
+        fastfood: '#ef4444',
+        lazer: '#8b5cf6',
+        saude: '#ec4899',
+        salario: '#10b981',
+        cartao_credito: '#0ea5e9', // Blue/cyan for credit card
+        outros: '#64748b'
     };
 
     // Calculate conic-gradient stops for the pie chart
