@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import type { Transaction, TransactionType } from '../types';
 import { getCategoryFromDescription, CATEGORY_LABELS, type Category } from '../utils';
+import { CheckCircle2, Circle } from 'lucide-react';
 
 interface TransactionListProps {
     transactions: Transaction[];
     onDelete: (id: string) => void;
     onEdit: (id: string, updated: Omit<Transaction, 'id'>) => void;
+    onTogglePaid: (id: string, currentStatus: boolean) => void;
 }
 
-export function TransactionList({ transactions, onDelete, onEdit }: TransactionListProps) {
+export function TransactionList({ transactions, onDelete, onEdit, onTogglePaid }: TransactionListProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editDesc, setEditDesc] = useState('');
     const [editAmount, setEditAmount] = useState('');
@@ -170,9 +172,24 @@ export function TransactionList({ transactions, onDelete, onEdit }: TransactionL
                         }
 
                         return (
-                            <tr key={t.id} style={{ borderTop: '1px solid var(--glass-border)', transition: 'background 0.2s' }}>
+                            <tr key={t.id} style={{ borderTop: '1px solid var(--glass-border)', transition: 'all 0.2s', opacity: t.isPaid === false ? 0.6 : 1 }}>
                                 <td style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <button
+                                            onClick={() => onTogglePaid(t.id, t.isPaid ?? true)}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                padding: 0,
+                                                color: t.isPaid === false ? 'var(--text-secondary)' : 'var(--accent-color)',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                            title={t.isPaid === false ? 'Marcar como pago' : 'Marcar como pendente'}
+                                        >
+                                            {t.isPaid === false ? <Circle size={18} /> : <CheckCircle2 size={18} />}
+                                        </button>
                                         {t.isRecurring && (
                                             <span title="Conta Recorrente" style={{ fontSize: '14px', cursor: 'help' }}>🔄</span>
                                         )}

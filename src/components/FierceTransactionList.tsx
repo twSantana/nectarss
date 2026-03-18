@@ -1,14 +1,15 @@
 import type { Transaction } from '../types';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, CheckCircle2, Circle } from 'lucide-react';
 import { CATEGORY_LABELS } from '../utils';
 
 interface FierceTransactionListProps {
     transactions: Transaction[];
     onDelete: (id: string) => void;
     onEdit: (id: string, updated: Omit<Transaction, 'id'>) => void;
+    onTogglePaid: (id: string, currentStatus: boolean) => void;
 }
 
-export function FierceTransactionList({ transactions, onDelete, onEdit }: FierceTransactionListProps) {
+export function FierceTransactionList({ transactions, onDelete, onEdit, onTogglePaid }: FierceTransactionListProps) {
     // Sort by date descending
     const sorted = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -50,12 +51,39 @@ export function FierceTransactionList({ transactions, onDelete, onEdit }: Fierce
                                 padding: '16px 20px',
                                 borderBottom: i < dayTransactions.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                                 gap: '16px',
-                                transition: 'background 0.2s',
+                                transition: 'background 0.2s, opacity 0.2s',
+                                opacity: t.isPaid === false ? 0.6 : 1,
                                 cursor: 'pointer'
                             }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                                    e.currentTarget.style.opacity = '1';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                    e.currentTarget.style.opacity = t.isPaid === false ? '0.6' : '1';
+                                }}
                             >
+                                {/* Toggle Check */}
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePaid(t.id, t.isPaid ?? true);
+                                    }}
+                                    style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        padding: 0,
+                                        color: t.isPaid === false ? 'var(--text-secondary)' : 'var(--accent-color)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                    }}
+                                    title={t.isPaid === false ? 'Marcar como pago' : 'Marcar como pendente'}
+                                >
+                                    {t.isPaid === false ? <Circle size={20} /> : <CheckCircle2 size={20} />}
+                                </button>
+
                                 {/* Icon */}
                                 <div style={{
                                     width: '40px',

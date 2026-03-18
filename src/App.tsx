@@ -8,6 +8,7 @@ import { CategorySummary } from './components/CategorySummary';
 import { UserProfile } from './components/UserProfile';
 import { RecurringModal } from './components/RecurringModal';
 import { BudgetManager } from './components/BudgetManager';
+import { SavingsGoalsManager } from './components/SavingsGoalsManager';
 import { AnnualTrends } from './components/AnnualTrends';
 import { InstallPrompt } from './components/InstallPrompt';
 import { Auth } from './components/Auth';
@@ -35,6 +36,8 @@ function App() {
   const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
+  const [budgets, setBudgets] = useState<any[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -71,7 +74,8 @@ function App() {
           paymentMethod: t.payment_method,
           isRecurring: t.is_recurring,
           recurrenceId: t.recurrence_id,
-          installmentId: t.installment_id
+          installmentId: t.installment_id,
+          isPaid: t.is_paid
         })));
       }
 
@@ -87,6 +91,14 @@ function App() {
           dayOfMonth: t.day_of_month
         })));
       }
+
+      // 3. Fetch Budgets
+      const { data: bData } = await supabase.from('budgets').select('*');
+      if (bData) setBudgets(bData);
+
+      // 4. Fetch Savings Goals
+      const { data: sgData } = await supabase.from('savings_goals').select('*');
+      if (sgData) setSavingsGoals(sgData);
     };
 
     fetchData();
@@ -102,6 +114,7 @@ function App() {
       const now = new Date();
       const currentYear = now.getUTCFullYear();
       const currentMonth = now.getUTCMonth();
+      const endOfMonth = new Date(Date.UTC(currentYear, currentMonth + 1, 0, 23, 59, 59, 999));
 
       recurringTransactions.forEach((template) => {
         const existingForTemplate = transactions.filter(t => t.recurrenceId === template.id);
@@ -121,7 +134,7 @@ function App() {
           nextDate.setUTCMonth(nextDate.getUTCMonth() + 1);
           nextDate.setUTCDate(Math.min(template.dayOfMonth, new Date(nextDate.getUTCFullYear(), nextDate.getUTCMonth() + 1, 0).getUTCDate()));
 
-          while (nextDate.getTime() <= now.getTime()) {
+          while (nextDate.getTime() <= endOfMonth.getTime()) {
             newTxs.push({
               user_id: session.user.id,
               description: template.description,
@@ -131,7 +144,8 @@ function App() {
               date: nextDate.toISOString(),
               payment_method: template.paymentMethod,
               is_recurring: true,
-              recurrence_id: template.id
+              recurrence_id: template.id,
+              is_paid: false
             });
             changed = true;
 
@@ -144,7 +158,7 @@ function App() {
           candidateDate.setUTCDate(Math.min(template.dayOfMonth, new Date(currentYear, currentMonth + 1, 0).getUTCDate()));
           candidateDate.setUTCHours(12, 0, 0, 0);
 
-          if (candidateDate.getTime() <= now.getTime()) {
+          if (candidateDate.getTime() <= endOfMonth.getTime()) {
             newTxs.push({
               user_id: session.user.id,
               description: template.description,
@@ -154,7 +168,8 @@ function App() {
               date: candidateDate.toISOString(),
               payment_method: template.paymentMethod,
               is_recurring: true,
-              recurrence_id: template.id
+              recurrence_id: template.id,
+              is_paid: false
             });
             changed = true;
           }
@@ -169,7 +184,8 @@ function App() {
             paymentMethod: t.payment_method,
             isRecurring: t.is_recurring,
             recurrenceId: t.recurrence_id,
-            installmentId: t.installment_id
+            installmentId: t.installment_id,
+            isPaid: t.is_paid
           }));
           setTransactions(prev => {
             const merged = [...formatted, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -223,7 +239,8 @@ function App() {
           paymentMethod: t.payment_method,
           isRecurring: t.is_recurring,
           recurrenceId: t.recurrence_id,
-          installmentId: t.installment_id
+          installmentId: t.installment_id,
+          isPaid: t.is_paid
         }));
         setTransactions(prev => [...formatted, ...prev]);
       }
@@ -247,7 +264,8 @@ function App() {
           paymentMethod: t.payment_method,
           isRecurring: t.is_recurring,
           recurrenceId: t.recurrence_id,
-          installmentId: t.installment_id
+          installmentId: t.installment_id,
+          isPaid: t.is_paid
         }, ...prev]);
       }
     }
@@ -286,6 +304,17 @@ function App() {
     }
   };
 
+  const handleTogglePaid = async (id: string, currentStatus: boolean) => {
+    const { data, error } = await supabase.from('transactions').update({ is_paid: !currentStatus }).eq('id', id).select();
+    if (error) {
+      alert(`Erro ao atualizar status: ${error.message}`);
+    } else if (data && data.length > 0) {
+      setTransactions(prev => prev.map(t =>
+        t.id === id ? { ...t, isPaid: !currentStatus } : t
+      ));
+    }
+  };
+
   const handleAddRecurring = async (template: Omit<RecurringTransaction, 'id'>) => {
     if (!session?.user?.id) return;
 
@@ -315,6 +344,38 @@ function App() {
     if (!error) {
       setRecurringTransactions(prev => prev.filter(t => t.id !== id));
     }
+  };
+
+  const handleAddBudget = async (budget: Omit<any, 'id'>) => {
+    if (!session?.user?.id) return;
+    const { data, error } = await supabase.from('budgets').insert({ ...budget, user_id: session.user.id }).select();
+    if (data && data[0] && !error) setBudgets(prev => [...prev, data[0]]);
+  };
+
+  const handleUpdateBudget = async (id: string, amount: number) => {
+    const { error } = await supabase.from('budgets').update({ amount }).eq('id', id);
+    if (!error) setBudgets(prev => prev.map(b => b.id === id ? { ...b, amount } : b));
+  };
+
+  const handleRemoveBudget = async (id: string) => {
+    const { error } = await supabase.from('budgets').delete().eq('id', id);
+    if (!error) setBudgets(prev => prev.filter(b => b.id !== id));
+  };
+
+  const handleAddSavingsGoal = async (goal: Omit<any, 'id' | 'current_amount'>) => {
+    if (!session?.user?.id) return;
+    const { data, error } = await supabase.from('savings_goals').insert({ ...goal, current_amount: 0, user_id: session.user.id }).select();
+    if (data && data[0] && !error) setSavingsGoals(prev => [...prev, data[0]]);
+  };
+
+  const handleUpdateSavingsAmount = async (id: string, newAmount: number) => {
+    const { error } = await supabase.from('savings_goals').update({ current_amount: newAmount }).eq('id', id);
+    if (!error) setSavingsGoals(prev => prev.map(sg => sg.id === id ? { ...sg, current_amount: newAmount } : sg));
+  };
+
+  const handleDeleteSavingsGoal = async (id: string) => {
+    const { error } = await supabase.from('savings_goals').delete().eq('id', id);
+    if (!error) setSavingsGoals(prev => prev.filter(sg => sg.id !== id));
   };
 
   const currentYear = new Date().getFullYear();
@@ -378,9 +439,9 @@ function App() {
           onToggleTheme={() => setTheme('classic')}
         />
 
-        <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
+        <main className="fierce-main">
           {/* Header */}
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '40px' }}>
+          <header className="fierce-header">
             <div>
               <h1 style={{ fontSize: '28px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>
                 Hi {session.user.email?.split('@')[0]}, 👋
@@ -389,7 +450,7 @@ function App() {
                 Welcome back, here's what's happening today.
               </p>
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="fierce-header-actions">
               <button
                 style={{
                   padding: '10px 20px',
@@ -424,6 +485,7 @@ function App() {
                     transactions={displayedTransactions}
                     onDelete={handleDeleteTransaction}
                     onEdit={handleEditTransaction}
+                    onTogglePaid={handleTogglePaid}
                   />
                 </div>
               </div>
@@ -450,7 +512,7 @@ function App() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-      <header className="animate-fade-in" style={{ marginBottom: '40px', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', zIndex: 100 }}>
+      <header className="animate-fade-in classic-header">
         <div style={{ textAlign: 'center', width: '100%' }}>
           <h1 style={{ fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 700, marginBottom: '8px', background: 'linear-gradient(90deg, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Nectar's
@@ -460,7 +522,7 @@ function App() {
           </p>
         </div>
 
-        <div style={{ position: 'absolute', right: 0, top: 0, zIndex: 110, display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div className="classic-header-actions">
           <button
             onClick={() => setTheme(theme === 'classic' ? 'fierce' : 'classic')}
             className="theme-toggle-btn"
@@ -525,13 +587,26 @@ function App() {
                 transactions={displayedTransactions}
                 onDelete={handleDeleteTransaction}
                 onEdit={handleEditTransaction}
+                onTogglePaid={handleTogglePaid}
               />
             </div>
           )}
 
           {activeTab === 'reports' && (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-              <BudgetManager transactions={monthTransactions} />
+              <SavingsGoalsManager
+                goals={savingsGoals}
+                onAddGoal={handleAddSavingsGoal}
+                onUpdateAmount={handleUpdateSavingsAmount}
+                onDeleteGoal={handleDeleteSavingsGoal}
+              />
+              <BudgetManager 
+                transactions={monthTransactions} 
+                budgets={budgets}
+                onAddBudget={handleAddBudget}
+                onUpdateBudget={handleUpdateBudget}
+                onRemoveBudget={handleRemoveBudget}
+              />
               <AnnualTrends transactions={transactions} currentYear={currentYear} />
             </div>
           )}

@@ -12,6 +12,7 @@ export interface Transaction {
   isRecurring?: boolean; // Keep for backward compatibility of already generated ones
   recurrenceId?: string; // Keep for backward compatibility
   installmentId?: string; // Groups transactions from the same installment purchase
+  isPaid?: boolean; // Tracking check-in status (paid or not paid)
 }
 
 export interface RecurringTransaction {
@@ -22,4 +23,18 @@ export interface RecurringTransaction {
   category: string;
   paymentMethod?: PaymentMethod;
   dayOfMonth: number; // 1-31
+}
+
+export interface Budget {
+  id: string;
+  category: string;
+  amount: number;
+}
+
+export interface SavingsGoal {
+  id: string;
+  title: string;
+  target_amount: number;
+  current_amount: number;
+  deadline?: string;
 }
