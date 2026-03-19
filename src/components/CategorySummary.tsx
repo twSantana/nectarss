@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { Transaction } from '../types';
 import { type Category, CATEGORY_LABELS } from '../utils';
 
@@ -6,6 +8,8 @@ interface CategorySummaryProps {
 }
 
 export function CategorySummary({ transactions }: CategorySummaryProps) {
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
     // Only look at expenses
     const expenses = transactions.filter(t => t.type === 'expense');
 
@@ -17,14 +21,14 @@ export function CategorySummary({ transactions }: CategorySummaryProps) {
 
     // Group by category
     const categoryTotals = expenses.reduce((acc, t) => {
-        const cat = (t.category || 'outros') as Category;
+        const cat = t.category || 'outros';
         acc[cat] = (acc[cat] || 0) + t.amount;
         return acc;
-    }, {} as Record<Category, number>);
+    }, {} as Record<string, number>);
 
     // Sort by largest expense first
     const sortedCategories = Object.entries(categoryTotals)
-        .sort(([, amountA], [, amountB]) => amountB - amountA) as [Category, number][];
+        .sort(([, amountA], [, amountB]) => amountB - amountA);
 
     // Colors for the pie chart
     const pieColors: Record<Category, string> = {
@@ -39,11 +43,21 @@ export function CategorySummary({ transactions }: CategorySummaryProps) {
         outros: '#64748b'
     };
 
+    // Generate a color for custom categories
+    const stringToColor = (str: string) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+        return '#' + '00000'.substring(0, 6 - c.length) + c;
+    };
+
     // Calculate conic-gradient stops for the pie chart
     let currentPercentage = 0;
     const gradientStops = sortedCategories.map(([cat, amount]) => {
         const percentage = (amount / totalExpense) * 100;
-        const color = pieColors[cat] || pieColors['outros'];
+        const color = pieColors[cat as Category] || stringToColor(cat);
         const stop = `${color} ${currentPercentage}% ${currentPercentage + percentage}%`;
         currentPercentage += percentage;
         return stop;
@@ -115,14 +129,14 @@ export function CategorySummary({ transactions }: CategorySummaryProps) {
                     minWidth: '250px'
                 }}>
                     {sortedCategories.map(([cat, amount]) => {
-                        const bg = pieColors[cat] || pieColors['outros'];
+                        const bg = pieColors[cat as Category] || stringToColor(cat);
                         const percentage = ((amount / totalExpense) * 100).toFixed(1);
 
                         return (
-                            <div key={cat} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                            <div key={cat} onClick={() => setSelectedCategory(cat)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--glass-border)', transition: 'background 0.2s', userSelect: 'none' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'} onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: bg }}></div>
-                                    <span style={{ fontWeight: 500, fontSize: '14px' }}>{CATEGORY_LABELS[cat] || cat}</span>
+                                    <span style={{ fontWeight: 500, fontSize: '14px' }}>{CATEGORY_LABELS[cat as Category] || cat}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                                     <span style={{ fontSize: '14px', fontWeight: 600 }}>R$ {amount.toFixed(2)}</span>
@@ -133,6 +147,43 @@ export function CategorySummary({ transactions }: CategorySummaryProps) {
                     })}
                 </div>
             </div>
+            {selectedCategory && typeof document !== 'undefined' ? createPortal(
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, width: '100vw', height: '100vh',
+                    background: 'rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(8px)',
+                    zIndex: 999999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }} onClick={() => setSelectedCategory(null)}>
+                   <div className="glass-panel animate-fade-in" onClick={e => e.stopPropagation()} style={{
+                      width: '90%', maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto', background: 'var(--bg-gradient-start)'
+                   }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', alignItems: 'center' }}>
+                          <h3 style={{ fontSize: '20px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: pieColors[selectedCategory as Category] || stringToColor(selectedCategory) }}></div>
+                              Gastos de {CATEGORY_LABELS[selectedCategory as Category] || selectedCategory}
+                          </h3>
+                          <button onClick={() => setSelectedCategory(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', fontSize: '24px', cursor: 'pointer', padding: 0 }}>&times;</button>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {expenses.filter(t => (t.category || 'outros') === selectedCategory).map(t => (
+                              <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '16px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                                      <p style={{ margin: '0 0 4px 0', fontWeight: 500, fontSize: '15px', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.description}</p>
+                                      <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                          {new Date(t.date).toLocaleDateString('pt-BR')} • {t.paymentMethod}
+                                      </p>
+                                  </div>
+                                  <div style={{ fontWeight: 600, fontSize: '15px', color: 'var(--expense-color)', whiteSpace: 'nowrap' }}>
+                                      R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                   </div>
+                </div>, document.body
+            ) : null}
         </div>
     );
 }

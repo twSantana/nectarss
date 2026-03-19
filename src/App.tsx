@@ -233,12 +233,18 @@ function App() {
   const handleAddTransaction = async (newTransaction: Omit<Transaction, 'id'>, installments: number = 1) => {
     if (!session?.user?.id) return;
 
+    let baseDate = new Date(newTransaction.date);
+    // Para compras no cartão de crédito, a cobrança efetiva cai no mês seguinte
+    if (newTransaction.paymentMethod === 'credit') {
+      baseDate.setUTCMonth(baseDate.getUTCMonth() + 1);
+    }
+
     if (installments > 1) {
       const installmentId = crypto.randomUUID();
       const baseAmount = newTransaction.amount / installments;
       const newTxs: any[] = [];
 
-      let currentDate = new Date(newTransaction.date);
+      let currentDate = new Date(baseDate);
 
       for (let i = 1; i <= installments; i++) {
         newTxs.push({
@@ -283,7 +289,7 @@ function App() {
         amount: newTransaction.amount,
         type: newTransaction.type,
         category: newTransaction.category,
-        date: newTransaction.date,
+        date: baseDate.toISOString(),
         payment_method: newTransaction.paymentMethod,
         is_recurring: newTransaction.isRecurring || false,
       };

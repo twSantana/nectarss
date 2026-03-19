@@ -17,6 +17,7 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
     const [isRecurring, setIsRecurring] = useState(false);
     const [installments, setInstallments] = useState(1);
     const [isSuggested, setIsSuggested] = useState(false);
+    const [customCategory, setCustomCategory] = useState('');
 
     // AI Autocomplete effect
     useEffect(() => {
@@ -55,7 +56,12 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
 
         // Save date forcing to 12:00 to avoid timezone issues shifting the day
         const isoDate = new Date(`${date}T12:00:00Z`).toISOString();
-        const finalCategory = category === 'auto' ? getCategoryFromDescription(description, type) : category;
+        let finalCategory = category;
+        if (category === 'auto') {
+            finalCategory = getCategoryFromDescription(description, type);
+        } else if (category === 'nova') {
+            finalCategory = customCategory.trim() || 'outros';
+        }
 
         onAdd({
             description,
@@ -70,8 +76,10 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
         setDescription('');
         setAmount('');
         setCategory('auto');
+        setCustomCategory('');
         setIsRecurring(false);
         setInstallments(1);
+        setIsSuggested(false);
         // Keep the last selected date for convenience when adding multiple
     };
 
@@ -110,14 +118,30 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
                 <div>
                     <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-secondary)' }}>
                         <span>Categoria</span>
-                        {isSuggested && <span style={{ color: 'var(--accent-color)', fontSize: '10px', textTransform: 'uppercase', fontWeight: 900 }}>✨ Sugerido</span>}
+                        {isSuggested && category !== 'nova' && <span style={{ color: 'var(--accent-color)', fontSize: '10px', textTransform: 'uppercase', fontWeight: 900 }}>✨ Sugerido</span>}
                     </label>
-                    <select value={category} onChange={(e) => { setCategory(e.target.value); setIsSuggested(false); }}>
-                        <option value="auto">✨ Automático</option>
-                        {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
-                        ))}
-                    </select>
+                    {category === 'nova' ? (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <input 
+                                autoFocus
+                                type="text"
+                                placeholder="Nome da categoria"
+                                value={customCategory}
+                                onChange={e => setCustomCategory(e.target.value)}
+                                style={{ flex: 1 }}
+                                required
+                            />
+                            <button type="button" onClick={() => setCategory('auto')} style={{ padding: '0 12px', background: 'var(--glass-bg)', color: 'var(--text-secondary)' }}>✕</button>
+                        </div>
+                    ) : (
+                        <select value={category} onChange={(e) => { setCategory(e.target.value); setIsSuggested(false); }}>
+                            <option value="auto">✨ Automático</option>
+                            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
+                            ))}
+                            <option value="nova">➕ Nova Categoria Personalizada...</option>
+                        </select>
+                    )}
                 </div>
                 <div>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Data</label>
