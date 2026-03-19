@@ -1,15 +1,55 @@
-import type { RecurringTransaction } from '../types';
-import { Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
+import type { RecurringTransaction, Transaction } from '../types';
+import { Calendar as CalendarIcon, ChevronRight, AlertTriangle } from 'lucide-react';
 
 interface FierceUpcomingBillsProps {
     recurringTransactions: RecurringTransaction[];
+    transactions: Transaction[];
 }
 
-export function FierceUpcomingBills({ recurringTransactions }: FierceUpcomingBillsProps) {
-    // We'll show up to 3 upcoming bills that are expenses
-    const bills = recurringTransactions
+export function FierceUpcomingBills({ recurringTransactions, transactions }: FierceUpcomingBillsProps) {
+    const now = new Date();
+    const currentDay = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Map bills to calculate days remaining and if paid
+    let upcoming = recurringTransactions
         .filter(r => r.type === 'expense')
-        .slice(0, 3);
+        .map(bill => {
+            const monthTxs = transactions.filter(t => 
+                t.recurrenceId === bill.id && 
+                new Date(t.date).getMonth() === currentMonth &&
+                new Date(t.date).getFullYear() === currentYear
+            );
+            const isPaid = monthTxs.some(t => t.isPaid);
+            
+            let daysRemaining = bill.dayOfMonth - currentDay;
+            let isOverdue = false;
+            let urgencyLevel = 'normal'; // 'normal', 'warning', 'overdue'
+
+            if (!isPaid && daysRemaining < 0) {
+                isOverdue = true;
+                urgencyLevel = 'overdue';
+            } else if (!isPaid && daysRemaining <= 5 && daysRemaining >= 0) {
+                urgencyLevel = 'warning';
+            } else if (daysRemaining < 0 && isPaid) {
+                // Paid this month, show for next month
+                const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+                daysRemaining = (daysInMonth - currentDay) + bill.dayOfMonth;
+            }
+
+            return { ...bill, isPaid, daysRemaining, isOverdue, urgencyLevel };
+        });
+
+    upcoming.sort((a, b) => {
+        if (a.isPaid && !b.isPaid) return 1;
+        if (!a.isPaid && b.isPaid) return -1;
+        if (a.isOverdue && !b.isOverdue) return -1;
+        if (!a.isOverdue && b.isOverdue) return 1;
+        return a.daysRemaining - b.daysRemaining;
+    });
+
+    const bills = upcoming.slice(0, 4);
 
     return (
         <div className="glass-panel" style={{
@@ -22,7 +62,7 @@ export function FierceUpcomingBills({ recurringTransactions }: FierceUpcomingBil
         }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#fff', margin: 0 }}>
-                    Upcoming Bills
+                    Contas Fixas Mensais
                 </h3>
                 <button style={{
                     background: 'transparent',
@@ -34,7 +74,7 @@ export function FierceUpcomingBills({ recurringTransactions }: FierceUpcomingBil
                     alignItems: 'center',
                     gap: '4px'
                 }}>
-                    Connect More <ChevronRight size={16} />
+                    Ver Mais <ChevronRight size={16} />
                 </button>
             </div>
 
@@ -42,18 +82,28 @@ export function FierceUpcomingBills({ recurringTransactions }: FierceUpcomingBil
                 {bills.length > 0 ? (
                     bills.map(bill => (
                         <div key={bill.id} style={{
-                            minWidth: '140px',
+                            minWidth: '150px',
                             padding: '16px',
-                            background: 'rgba(255,255,255,0.05)',
+                            background: bill.urgencyLevel === 'overdue' ? 'rgba(239, 68, 68, 0.15)' : bill.urgencyLevel === 'warning' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.05)',
                             borderRadius: '16px',
-                            border: '1px solid var(--glass-border)',
+                            border: `1px solid ${bill.urgencyLevel === 'overdue' ? 'rgba(239,68,68,0.3)' : bill.urgencyLevel === 'warning' ? 'rgba(245,158,11,0.3)' : 'var(--glass-border)'}`,
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: '12px'
+                            gap: '12px',
+                            position: 'relative',
+                            overflow: 'hidden'
                         }}>
-                            <p style={{ color: '#fff', fontSize: '14px', fontWeight: 500, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {bill.description}
-                            </p>
+                            {/* Color Bar */}
+                            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: bill.urgencyLevel === 'overdue' ? 'var(--expense-color)' : bill.urgencyLevel === 'warning' ? '#f59e0b' : 'var(--accent-color)' }} />
+
+                            <div>
+                                <p style={{ color: '#fff', fontSize: '14px', fontWeight: 500, margin: '0 0 4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {bill.description}
+                                </p>
+                                {bill.urgencyLevel === 'overdue' && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--expense-color)', fontWeight: 800, textTransform: 'uppercase' }}><AlertTriangle size={12}/> Vencida</div>}
+                                {bill.urgencyLevel === 'warning' && <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#f59e0b', fontWeight: 800, textTransform: 'uppercase' }}><CalendarIcon size={12}/> Vence em {bill.daysRemaining} dias</div>}
+                                {bill.isPaid && <div style={{ fontSize: '10px', color: 'var(--income-color)', fontWeight: 800, textTransform: 'uppercase' }}>Pago</div>}
+                            </div>
 
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)', fontSize: '12px' }}>

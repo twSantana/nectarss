@@ -22,6 +22,7 @@ import { FierceTransactionList } from './components/FierceTransactionList';
 import { CATEGORY_LABELS } from './utils';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
+import html2pdf from 'html2pdf.js';
 import './App.css';
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<'main' | 'reports'>('main'); // Classic navigation
   const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<number | null>(new Date().getMonth());
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
@@ -423,9 +425,9 @@ function App() {
     return d.getMonth() === prevMonthIndex && isPrevYear;
   });
 
-  const displayedTransactions = selectedDateFilter
+  const displayedTransactions = (selectedDateFilter
     ? transactions.filter(t => t.date.split('T')[0] === selectedDateFilter)
-    : monthTransactions; // Use month's transactions if no day is selected
+    : monthTransactions).filter(t => t.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleExportCSV = () => {
     // Generate CSV string
@@ -525,15 +527,22 @@ function App() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                 <FierceRewards transactions={monthTransactions} />
-                <FierceUpcomingBills recurringTransactions={recurringTransactions} />
+                <FierceUpcomingBills recurringTransactions={recurringTransactions} transactions={transactions} />
               </div>
             </div>
           )}
 
           {activeSection === 'transactions' && (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <TransactionForm onAdd={handleAddTransaction} />
+              <TransactionForm onAdd={handleAddTransaction} recentTransactions={transactions} />
               <div style={{ marginTop: '8px' }}>
+                <input
+                   type="text"
+                   placeholder="Pesquisar transações..."
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   style={{ marginBottom: '16px', background: 'var(--glass-bg)', color: '#fff' }}
+                />
                 <FierceTransactionList
                   transactions={displayedTransactions}
                   onDelete={handleDeleteTransaction}
@@ -563,9 +572,28 @@ function App() {
           )}
 
           {activeSection === 'reports' && (
-             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-               <AnnualTrends transactions={transactions} currentYear={currentYear} />
-               <CategorySummary transactions={monthTransactions} />
+             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                     <button onClick={() => {
+                         const element = document.getElementById('fierce-reports-content');
+                         if (element) {
+                             html2pdf().from(element).set({
+                                 margin: 10,
+                                 filename: `relatorio-nectars-${currentYear}.pdf`,
+                                 image: { type: 'jpeg', quality: 0.98 },
+                                 html2canvas: { scale: 2, useCORS: true, backgroundColor: '#1a1a1a' },
+                                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                             }).save();
+                         }
+                     }} style={{ background: 'var(--accent-color)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
+                         📥 Exportar Relatório em PDF
+                     </button>
+                </div>
+                <div id="fierce-reports-content" style={{ display: 'flex', flexDirection: 'column', gap: '32px', background: 'var(--glass-bg)', padding: '24px', borderRadius: '16px' }}>
+                   <h2 style={{ fontSize: '24px', color: '#fff', textAlign: 'center', marginBottom: '16px' }}>Relatório Financeiro Nectar's</h2>
+                   <AnnualTrends transactions={transactions} currentYear={currentYear} />
+                   <CategorySummary transactions={monthTransactions} />
+                </div>
              </div>
           )}
         </main>
@@ -655,7 +683,16 @@ function App() {
 
           {activeTab === 'main' && (
             <div className="animate-fade-in">
-              <TransactionForm onAdd={handleAddTransaction} />
+              <TransactionForm onAdd={handleAddTransaction} recentTransactions={transactions} />
+              
+              <input
+                 type="text"
+                 placeholder="Pesquisar transações..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 style={{ marginBottom: '16px', marginTop: '24px' }}
+              />
+
               <TransactionList
                 transactions={displayedTransactions}
                 onDelete={handleDeleteTransaction}
@@ -666,21 +703,39 @@ function App() {
           )}
 
           {activeTab === 'reports' && (
-            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-              <SavingsGoalsManager
-                goals={savingsGoals}
-                onAddGoal={handleAddSavingsGoal}
-                onUpdateAmount={handleUpdateSavingsAmount}
-                onDeleteGoal={handleDeleteSavingsGoal}
-              />
-              <BudgetManager 
-                transactions={monthTransactions} 
-                budgets={budgets}
-                onAddBudget={handleAddBudget}
-                onUpdateBudget={handleUpdateBudget}
-                onRemoveBudget={handleRemoveBudget}
-              />
-              <AnnualTrends transactions={transactions} currentYear={currentYear} />
+            <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                     <button onClick={() => {
+                         const element = document.getElementById('classic-reports-content');
+                         if (element) {
+                             html2pdf().from(element).set({
+                                 margin: 10,
+                                 filename: `relatorio-nectars-${currentYear}.pdf`,
+                                 image: { type: 'jpeg', quality: 0.98 },
+                                 html2canvas: { scale: 2, useCORS: true, backgroundColor: '#1e293b' },
+                                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                             }).save();
+                         }
+                     }} style={{ background: 'var(--accent-color)', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: 600 }}>
+                         📥 Exportar Relatório em PDF
+                     </button>
+                </div>
+              <div id="classic-reports-content" style={{ display: 'flex', flexDirection: 'column', gap: '32px', background: 'var(--glass-bg)', padding: '24px', borderRadius: '16px' }}>
+                <SavingsGoalsManager
+                  goals={savingsGoals}
+                  onAddGoal={handleAddSavingsGoal}
+                  onUpdateAmount={handleUpdateSavingsAmount}
+                  onDeleteGoal={handleDeleteSavingsGoal}
+                />
+                <BudgetManager 
+                  transactions={monthTransactions} 
+                  budgets={budgets}
+                  onAddBudget={handleAddBudget}
+                  onUpdateBudget={handleUpdateBudget}
+                  onRemoveBudget={handleRemoveBudget}
+                />
+                <AnnualTrends transactions={transactions} currentYear={currentYear} />
+              </div>
             </div>
           )}
         </main>

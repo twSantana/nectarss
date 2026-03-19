@@ -68,8 +68,9 @@ export function FierceDashboard({ transactions, previousTransactions }: FierceDa
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500 }}>Total Balance</span>
-                            <Eye size={16} color="var(--text-secondary)" />
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500 }}>Saldo Líquido Mensal</span>
+                            <span style={{ fontSize: '12px', fontWeight: 'normal', color: 'rgba(255,255,255,0.3)'}}>(Receitas - Despesas)</span>
+                            <Eye size={16} color="var(--text-secondary)" style={{marginLeft: 'auto'}} />
                         </div>
                         <h2 style={{ fontSize: '40px', fontWeight: 700, margin: '0 0 8px 0', color: '#fff' }}>
                             R$ {currentTotalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -88,7 +89,7 @@ export function FierceDashboard({ transactions, previousTransactions }: FierceDa
                                 {' '}
                                 ({isPositive ? '+' : ''}{percentageChange.toFixed(2)}%)
                             </span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>this month</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>neste mês</span>
                         </div>
                     </div>
 

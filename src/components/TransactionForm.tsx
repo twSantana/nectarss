@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Transaction, TransactionType } from '../types';
 import { getCategoryFromDescription, CATEGORY_LABELS } from '../utils';
 
 interface TransactionFormProps {
     onAdd: (transaction: Omit<Transaction, 'id'>, installments: number) => void;
+    recentTransactions?: Transaction[];
 }
 
-export function TransactionForm({ onAdd }: TransactionFormProps) {
+export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionFormProps) {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState<TransactionType>('expense');
@@ -15,6 +16,38 @@ export function TransactionForm({ onAdd }: TransactionFormProps) {
     const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix' | 'cash'>('pix');
     const [isRecurring, setIsRecurring] = useState(false);
     const [installments, setInstallments] = useState(1);
+    const [isSuggested, setIsSuggested] = useState(false);
+
+    // AI Autocomplete effect
+    useEffect(() => {
+        if (description.length > 2) {
+            const lowerDesc = description.toLowerCase().trim();
+            const matches = recentTransactions.filter(t => 
+                t.description.toLowerCase().includes(lowerDesc) || 
+                lowerDesc.includes(t.description.toLowerCase())
+            );
+            
+            if (matches.length > 0) {
+                const catCounts = matches.reduce((acc, t) => {
+                    if (t.category && t.category.trim() !== '' && t.category !== 'auto') {
+                         acc[t.category] = (acc[t.category] || 0) + 1;
+                    }
+                    return acc;
+                }, {} as Record<string, number>);
+                
+                const entries = Object.entries(catCounts);
+                if (entries.length > 0) {
+                    const mostFrequent = entries.sort((a, b) => b[1] - a[1])[0][0];
+                    if (mostFrequent !== 'auto' && mostFrequent !== category) {
+                        setCategory(mostFrequent);
+                        setIsSuggested(true);
+                        return; // Done
+                    }
+                }
+            }
+        }
+        setIsSuggested(false);
+    }, [description, recentTransactions]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -75,8 +108,11 @@ export function TransactionForm({ onAdd }: TransactionFormProps) {
                     </select>
                 </div>
                 <div>
-                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Categoria</label>
-                    <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                    <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-secondary)' }}>
+                        <span>Categoria</span>
+                        {isSuggested && <span style={{ color: 'var(--accent-color)', fontSize: '10px', textTransform: 'uppercase', fontWeight: 900 }}>✨ Sugerido</span>}
+                    </label>
+                    <select value={category} onChange={(e) => { setCategory(e.target.value); setIsSuggested(false); }}>
                         <option value="auto">✨ Automático</option>
                         {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
                             <option key={key} value={key}>{label}</option>
