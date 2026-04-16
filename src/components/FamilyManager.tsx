@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Family } from '../types';
+import type { Family, FamilyMember } from '../types';
 import { supabase } from '../supabase';
 import { Users, Copy, Check, Plus, Upload, X } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
@@ -13,7 +13,9 @@ interface FamilyManagerProps {
 }
 
 export function FamilyManager({ isOpen, onClose, families, session, onFamilyCreatedOrJoined }: FamilyManagerProps) {
-    const [view, setView] = useState<'list' | 'create' | 'join'>('list');
+    const [view, setView] = useState<'list' | 'create' | 'join' | 'members'>('list');
+    const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+    const [viewingFamilyName, setViewingFamilyName] = useState<string>('');
     const [newFamilyName, setNewFamilyName] = useState('');
     const [inviteCode, setInviteCode] = useState('');
     const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -48,7 +50,8 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
             await supabase.from('family_members').insert({
                 family_id: data[0].id,
                 user_id: session.user.id,
-                role: 'owner'
+                role: 'owner',
+                user_email: session.user.email
             });
             onFamilyCreatedOrJoined();
             setView('list');
@@ -62,7 +65,7 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
         setErrorMsg('');
         
         // Chamada segura via RPC para ignorar bloqueio RLS na leitura inicial
-        const { error } = await supabase.rpc('join_family', { p_invite_code: inviteCode.trim().toUpperCase() });
+        const { error } = await supabase.rpc('join_family', { p_invite_code: inviteCode.trim().toUpperCase(), p_user_email: session.user.email });
 
         if (error) {
             if (error.code === '23505' || error.message.includes('já faz parte')) setErrorMsg('Você já faz parte desta família.');
@@ -138,6 +141,18 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                                                     </button>
                                                 )}
                                                 <button 
+                                                    onClick={() => {
+                                                        setViewingFamilyName(f.name);
+                                                        supabase.from('family_members').select('*').eq('family_id', f.id).then(({data}) => {
+                                                            if(data) { setFamilyMembers(data); setView('members'); }
+                                                        });
+                                                    }}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: 'var(--accent-color)', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+                                                    title="Ver Membros"
+                                                >
+                                                    <Users size={14} /> Membros
+                                                </button>
+                                                <button 
                                                     onClick={() => copyToClipboard(f.invite_code || '')}
                                                     style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: '#fff', border: 'none', cursor: 'pointer' }}
                                                     title="Copiar Código de Convite"
@@ -173,6 +188,32 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                             <input type="text" placeholder="Cole o código (ex: AX8J2P) aqui" value={inviteCode} onChange={e => setInviteCode(e.target.value)} autoFocus />
                         </div>
                         <button onClick={handleJoin} disabled={!inviteCode.trim()}>Ingressar</button>
+                    </div>
+                )}
+                
+                {view === 'members' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <button onClick={() => setView('list')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: '8px' }}>← Voltar</button>
+                        <h3 style={{ fontSize: '18px', color: '#fff', marginBottom: '8px' }}>Membros — {viewingFamilyName}</h3>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto' }}>
+                            {familyMembers.map(m => (
+                                <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-color)', fontWeight: 'bold' }}>
+                                            {m.user_email?.charAt(0)?.toUpperCase() || '?'}
+                                        </div>
+                                        <div>
+                                            <p style={{ color: '#fff', fontSize: '14px', fontWeight: 500 }}>{m.user_email || 'Email Indisponível'}</p>
+                                            <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '2px' }}>{m.role === 'owner' ? 'Administrador' : 'Membro'}</p>
+                                        </div>
+                                    </div>
+                                    {m.user_id === session?.user.id && (
+                                        <span style={{ fontSize: '12px', color: 'var(--income-color)', background: 'var(--income-glow)', padding: '2px 8px', borderRadius: '12px' }}>Você</span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

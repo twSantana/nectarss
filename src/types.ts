@@ -55,6 +55,7 @@ export interface FamilyMember {
   id: string;
   family_id: string;
   user_id: string;
+  user_email?: string;
   role: string;
   joined_at?: string;
 }
