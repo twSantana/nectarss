@@ -81,7 +81,7 @@ export function UserProfile({ onOpenRecurring, session }: UserProfileProps) {
                         minWidth: '200px',
                         padding: '12px',
                         zIndex: 50,
-                        background: 'var(--bg-primary)', // Makes it almost fully opaque using the theme's base color
+                        background: 'var(--bg-gradient-start)', // Makes it opaque using the theme's start color
                         backdropFilter: 'blur(20px)',
                         boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
                         border: '1px solid var(--glass-border)',

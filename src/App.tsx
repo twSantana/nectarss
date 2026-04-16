@@ -684,7 +684,7 @@ function App() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
       <header className="animate-fade-in classic-header">
-        <div style={{ textAlign: 'center', width: '100%' }}>
+        <div style={{ textAlign: 'left', flex: 1, minWidth: 'fit-content' }}>
           <h1 style={{ fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 700, marginBottom: '8px', background: 'linear-gradient(90deg, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             Nectar's
           </h1>
