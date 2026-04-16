@@ -120,6 +120,19 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                 {f.owner_id === session?.user.id && (
+                                                  <div style={{ display: 'flex', gap: '4px' }}>
+                                                    <button 
+                                                        onClick={async () => {
+                                                            if (window.confirm('Tem certeza que deseja apagar esta família? Todos os dados vinculados a ela serão perdidos permanentemente.')) {
+                                                                await supabase.from('families').delete().eq('id', f.id);
+                                                                onFamilyCreatedOrJoined();
+                                                            }
+                                                        }}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: 'var(--expense-color)', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+                                                        title="Apagar Família"
+                                                    >
+                                                        Excluir
+                                                    </button>
                                                     <button 
                                                         onClick={async () => {
                                                             const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -131,6 +144,7 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                                                     >
                                                         Reciclar
                                                     </button>
+                                                  </div>
                                                 )}
                                                 <button 
                                                     onClick={() => copyToClipboard(f.invite_code || '')}
