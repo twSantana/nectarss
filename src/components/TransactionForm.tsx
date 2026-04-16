@@ -15,6 +15,7 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
     const [category, setCategory] = useState('auto');
     const [paymentMethod, setPaymentMethod] = useState<'credit' | 'debit' | 'pix' | 'cash'>('pix');
     const [isRecurring, setIsRecurring] = useState(false);
+    const [isPaid, setIsPaid] = useState(true); // new state for debts
     const [installments, setInstallments] = useState(1);
     const [isSuggested, setIsSuggested] = useState(false);
     const [customCategory, setCustomCategory] = useState('');
@@ -70,7 +71,8 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
             date: isoDate,
             paymentMethod,
             category: finalCategory,
-            isRecurring
+            isRecurring,
+            isPaid: type === 'income' ? true : isPaid // Auto true for income
         }, installments);
 
         setDescription('');
@@ -78,6 +80,7 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
         setCategory('auto');
         setCustomCategory('');
         setIsRecurring(false);
+        setIsPaid(true);
         setInstallments(1);
         setIsSuggested(false);
         // Keep the last selected date for convenience when adding multiple
@@ -174,16 +177,29 @@ export function TransactionForm({ onAdd, recentTransactions = [] }: TransactionF
                     </select>
                 </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '14px' }}>
-                    <input
-                        type="checkbox"
-                        checked={isRecurring}
-                        onChange={(e) => setIsRecurring(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent-color)', cursor: 'pointer' }}
-                    />
-                    Conta Recorrente (adiciona automaticamente todo mês)
-                </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '14px' }}>
+                        <input
+                            type="checkbox"
+                            checked={isRecurring}
+                            onChange={(e) => setIsRecurring(e.target.checked)}
+                            style={{ width: '16px', height: '16px', accentColor: 'var(--accent-color)', cursor: 'pointer' }}
+                        />
+                        Conta Recorrente (adiciona automaticamente todo mês)
+                    </label>
+                    {type === 'expense' && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', color: isPaid ? 'var(--income-color)' : 'var(--expense-color)', fontSize: '14px', fontWeight: 600 }}>
+                            <input
+                                type="checkbox"
+                                checked={isPaid}
+                                onChange={(e) => setIsPaid(e.target.checked)}
+                                style={{ width: '16px', height: '16px', accentColor: isPaid ? 'var(--income-color)' : 'var(--expense-color)', cursor: 'pointer' }}
+                            />
+                            {isPaid ? '✔ Conta já foi paga' : '⏳ Deixar pendente (Contas a Pagar)'}
+                        </label>
+                    )}
+                </div>
                 <button type="submit" style={{ height: '44px' }}>Adicionar</button>
             </div>
         </form>

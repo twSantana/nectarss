@@ -13,6 +13,7 @@ export interface Transaction {
   recurrenceId?: string; // Keep for backward compatibility
   installmentId?: string; // Groups transactions from the same installment purchase
   isPaid?: boolean; // Tracking check-in status (paid or not paid)
+  family_id?: string | null; // Multi-tenant tracking
 }
 
 export interface RecurringTransaction {
@@ -23,12 +24,14 @@ export interface RecurringTransaction {
   category: string;
   paymentMethod?: PaymentMethod;
   dayOfMonth: number; // 1-31
+  family_id?: string | null;
 }
 
 export interface Budget {
   id: string;
   category: string;
   amount: number;
+  family_id?: string | null;
 }
 
 export interface SavingsGoal {
@@ -37,4 +40,20 @@ export interface SavingsGoal {
   target_amount: number;
   current_amount: number;
   deadline?: string;
+  family_id?: string | null;
+}
+
+export interface Family {
+  id: string;
+  name: string;
+  owner_id: string;
+  created_at?: string;
+}
+
+export interface FamilyMember {
+  id: string;
+  family_id: string;
+  user_id: string;
+  role: string;
+  joined_at?: string;
 }

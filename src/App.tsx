@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import type { Transaction, RecurringTransaction } from './types';
+import { useState, useEffect, useCallback } from 'react';
+import type { Transaction, RecurringTransaction, Family } from './types';
 import { Dashboard } from './components/Dashboard';
 import { TransactionForm } from './components/TransactionForm';
 import { TransactionList } from './components/TransactionList';
@@ -19,6 +19,8 @@ import { FierceCards } from './components/FierceCards';
 import { FierceRewards } from './components/FierceRewards';
 import { FierceUpcomingBills } from './components/FierceUpcomingBills';
 import { FierceTransactionList } from './components/FierceTransactionList';
+import { DebtManager } from './components/DebtManager';
+import { FamilyManager } from './components/FamilyManager';
 import { CATEGORY_LABELS } from './utils';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
@@ -30,9 +32,9 @@ function App() {
     const saved = localStorage.getItem('finance_app_theme');
     return (saved as 'classic' | 'fierce') || 'classic';
   });
-  const [activeSection, setActiveSection] = useState('home'); // Fierce navigation
+  const [activeSection, setActiveSection] = useState('home'); // Enterprise navigation
   const [session, setSession] = useState<Session | null>(null);
-  const [activeTab, setActiveTab] = useState<'main' | 'reports'>('main'); // Classic navigation
+  const [activeTab, setActiveTab] = useState<'main' | 'reports' | 'debts'>('main'); // Classic navigation
   const [isRecurringModalOpen, setIsRecurringModalOpen] = useState(false);
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +43,13 @@ function App() {
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
   const [budgets, setBudgets] = useState<any[]>([]);
   const [savingsGoals, setSavingsGoals] = useState<any[]>([]);
+  
+  // Family states
+  const [families, setFamilies] = useState<Family[]>([]);
+  const [activeFamilyId, setActiveFamilyId] = useState<string | null>(() => {
+     return localStorage.getItem('finance_app_active_family') || null;
+  });
+  const [isFamilyManagerOpen, setIsFamilyManagerOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -62,14 +71,35 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (activeFamilyId) localStorage.setItem('finance_app_active_family', activeFamilyId);
+    else localStorage.removeItem('finance_app_active_family');
+  }, [activeFamilyId]);
+
+  const fetchFamilies = useCallback(async () => {
+    if (!session?.user?.id) return;
+    const { data: fams } = await supabase.from('families').select('*');
+    if (fams) {
+        setFamilies(fams);
+        if (activeFamilyId && !fams.find(f => f.id === activeFamilyId)) {
+            setActiveFamilyId(null);
+        }
+    }
+  }, [session, activeFamilyId]);
+
+  useEffect(() => {
+    if (session) fetchFamilies();
+  }, [session, fetchFamilies]);
+
+  useEffect(() => {
     if (!session?.user?.id) return;
 
     const fetchData = async () => {
       // 1. Fetch transactions
-      const { data: txData } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('date', { ascending: false });
+      let txQuery = supabase.from('transactions').select('*').order('date', { ascending: false });
+      if (activeFamilyId) txQuery = txQuery.eq('family_id', activeFamilyId);
+      else txQuery = txQuery.is('family_id', null);
+
+      const { data: txData } = await txQuery;
 
       if (txData) {
         let formattedTxs = txData.map(t => ({
@@ -112,9 +142,11 @@ function App() {
       }
 
       // 2. Fetch recurring defaults
-      const { data: recData } = await supabase
-        .from('recurring_transactions')
-        .select('*');
+      let recQuery = supabase.from('recurring_transactions').select('*');
+      if (activeFamilyId) recQuery = recQuery.eq('family_id', activeFamilyId);
+      else recQuery = recQuery.is('family_id', null);
+      
+      const { data: recData } = await recQuery;
 
       if (recData) {
         setRecurringTransactions(recData.map(t => ({
@@ -125,16 +157,22 @@ function App() {
       }
 
       // 3. Fetch Budgets
-      const { data: bData } = await supabase.from('budgets').select('*');
+      let bQuery = supabase.from('budgets').select('*');
+      if (activeFamilyId) bQuery = bQuery.eq('family_id', activeFamilyId);
+      else bQuery = bQuery.is('family_id', null);
+      const { data: bData } = await bQuery;
       if (bData) setBudgets(bData);
 
       // 4. Fetch Savings Goals
-      const { data: sgData } = await supabase.from('savings_goals').select('*');
+      let sgQuery = supabase.from('savings_goals').select('*');
+      if (activeFamilyId) sgQuery = sgQuery.eq('family_id', activeFamilyId);
+      else sgQuery = sgQuery.is('family_id', null);
+      const { data: sgData } = await sgQuery;
       if (sgData) setSavingsGoals(sgData);
     };
 
     fetchData();
-  }, [session]);
+  }, [session, activeFamilyId]);
 
   // Logic to auto-generate recurring transactions for missing month
   useEffect(() => {
@@ -177,7 +215,8 @@ function App() {
               payment_method: template.paymentMethod,
               is_recurring: true,
               recurrence_id: template.id,
-              is_paid: false
+              is_paid: false,
+              family_id: activeFamilyId || null
             });
             changed = true;
 
@@ -201,7 +240,8 @@ function App() {
               payment_method: template.paymentMethod,
               is_recurring: true,
               recurrence_id: template.id,
-              is_paid: false
+              is_paid: false,
+              family_id: activeFamilyId || null
             });
             changed = true;
           }
@@ -217,7 +257,8 @@ function App() {
             isRecurring: t.is_recurring,
             recurrenceId: t.recurrence_id,
             installmentId: t.installment_id,
-            isPaid: t.is_paid
+            isPaid: t.is_paid,
+            family_id: t.family_id
           }));
           setTransactions(prev => {
             const merged = [...formatted, ...prev].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -256,7 +297,9 @@ function App() {
           date: currentDate.toISOString(),
           payment_method: newTransaction.paymentMethod,
           is_recurring: false,
-          installment_id: installmentId
+          installment_id: installmentId,
+          is_paid: newTransaction.isPaid,
+          family_id: activeFamilyId || null
         });
 
         // advance by 1 month properly
@@ -278,7 +321,8 @@ function App() {
           isRecurring: t.is_recurring,
           recurrenceId: t.recurrence_id,
           installmentId: t.installment_id,
-          isPaid: t.is_paid
+          isPaid: t.is_paid,
+          family_id: t.family_id
         }));
         setTransactions(prev => [...formatted, ...prev]);
       }
@@ -292,6 +336,8 @@ function App() {
         date: baseDate.toISOString(),
         payment_method: newTransaction.paymentMethod,
         is_recurring: newTransaction.isRecurring || false,
+        is_paid: newTransaction.type === 'expense' ? (newTransaction.isPaid ?? true) : true,
+        family_id: activeFamilyId || null
       };
 
       const { data, error } = await supabase.from('transactions').insert(dbTx).select();
@@ -303,7 +349,8 @@ function App() {
           isRecurring: t.is_recurring,
           recurrenceId: t.recurrence_id,
           installmentId: t.installment_id,
-          isPaid: t.is_paid
+          isPaid: t.is_paid,
+          family_id: t.family_id
         }, ...prev]);
       }
     }
@@ -363,7 +410,8 @@ function App() {
       type: template.type,
       category: template.category,
       payment_method: template.paymentMethod,
-      day_of_month: template.dayOfMonth
+      day_of_month: template.dayOfMonth,
+      family_id: activeFamilyId || null
     };
 
     const { data, error } = await supabase.from('recurring_transactions').insert(dbTemplate).select();
@@ -386,7 +434,7 @@ function App() {
 
   const handleAddBudget = async (budget: Omit<any, 'id'>) => {
     if (!session?.user?.id) return;
-    const { data, error } = await supabase.from('budgets').insert({ ...budget, user_id: session.user.id }).select();
+    const { data, error } = await supabase.from('budgets').insert({ ...budget, user_id: session.user.id, family_id: activeFamilyId || null }).select();
     if (data && data[0] && !error) setBudgets(prev => [...prev, data[0]]);
   };
 
@@ -402,7 +450,7 @@ function App() {
 
   const handleAddSavingsGoal = async (goal: Omit<any, 'id' | 'current_amount'>) => {
     if (!session?.user?.id) return;
-    const { data, error } = await supabase.from('savings_goals').insert({ ...goal, current_amount: 0, user_id: session.user.id }).select();
+    const { data, error } = await supabase.from('savings_goals').insert({ ...goal, current_amount: 0, user_id: session.user.id, family_id: activeFamilyId || null }).select();
     if (data && data[0] && !error) setSavingsGoals(prev => [...prev, data[0]]);
   };
 
@@ -475,6 +523,10 @@ function App() {
           onOpenRecurring={() => setIsRecurringModalOpen(true)}
           theme={theme}
           onToggleTheme={() => setTheme('classic')}
+          families={families}
+          activeFamilyId={activeFamilyId}
+          setActiveFamilyId={setActiveFamilyId}
+          onOpenFamilyManager={() => setIsFamilyManagerOpen(true)}
         />
 
         <main className="fierce-main">
@@ -487,6 +539,7 @@ function App() {
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
                 {activeSection === 'home' && "Bem-vindo de volta, aqui está o resumo de hoje."}
                 {activeSection === 'transactions' && "Registre e acompanhe suas transações."}
+                {activeSection === 'debts' && "Gerencie suas contas a pagar e fique em dia."}
                 {activeSection === 'goals' && "Acompanhe e defina suas metas financeiras."}
                 {activeSection === 'reports' && "Veja análises detalhadas das suas finanças."}
               </p>
@@ -559,6 +612,10 @@ function App() {
             </div>
           )}
 
+          {activeSection === 'debts' && (
+            <DebtManager transactions={transactions} onTogglePaid={handleTogglePaid} />
+          )}
+
           {activeSection === 'goals' && (
             <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <SavingsGoalsManager
@@ -629,14 +686,22 @@ function App() {
           </p>
         </div>
 
-        <div className="classic-header-actions">
+        <div className="classic-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <select 
+             value={activeFamilyId || ''} 
+             onChange={e => setActiveFamilyId(e.target.value || null)}
+             style={{ padding: '8px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+          >
+             <option value="">👤 Espaço Pessoal</option>
+             {families.map(f => <option key={f.id} value={f.id}>👨‍👩‍👧‍👦 {f.name}</option>)}
+          </select>
           <button
             onClick={() => setTheme(theme === 'classic' ? 'fierce' : 'classic')}
             className="theme-toggle-btn"
             style={{ padding: '8px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
             title="Alternar Tema"
           >
-            {theme === 'classic' ? 'Fierce Mode ✨' : 'Classic Mode 🏛️'}
+            {theme === 'classic' ? 'Enterprise ✨' : 'Classic Mode 🏛️'}
           </button>
           <button
             onClick={handleExportCSV}
@@ -671,6 +736,21 @@ function App() {
               Principal
             </button>
             <button
+              onClick={() => setActiveTab('debts')}
+              style={{
+                padding: '8px 16px',
+                background: activeTab === 'debts' ? 'var(--accent-color)' : 'transparent',
+                color: activeTab === 'debts' ? '#fff' : 'var(--text-secondary)',
+                border: activeTab === 'debts' ? 'none' : '1px solid var(--glass-border)',
+                borderRadius: '8px',
+                fontWeight: activeTab === 'debts' ? 600 : 400,
+                transition: 'all 0.2s',
+                cursor: 'pointer'
+              }}
+            >
+              Contas a Pagar
+            </button>
+            <button
               onClick={() => setActiveTab('reports')}
               style={{
                 padding: '8px 16px',
@@ -686,6 +766,10 @@ function App() {
               Relatórios e Metas
             </button>
           </div>
+
+          {activeTab === 'debts' && (
+            <DebtManager transactions={transactions} onTogglePaid={handleTogglePaid} />
+          )}
 
           {activeTab === 'main' && (
             <div className="animate-fade-in">
@@ -771,6 +855,13 @@ function App() {
         onDelete={handleDeleteRecurring}
       />
       <SupportButton />
+      <FamilyManager 
+          isOpen={isFamilyManagerOpen} 
+          onClose={() => setIsFamilyManagerOpen(false)} 
+          families={families} 
+          session={session} 
+          onFamilyCreatedOrJoined={fetchFamilies} 
+      />
     </div>
   );
 }

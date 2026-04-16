@@ -1,5 +1,6 @@
-import { Home, Wallet, PieChart, Target, Palette } from 'lucide-react';
+import { Home, Wallet, PieChart, Target, Palette, FileText, ChevronDown, Users } from 'lucide-react';
 import type { Session } from '@supabase/supabase-js';
+import type { Family } from '../types';
 import { UserProfile } from './UserProfile';
 
 interface SidebarProps {
@@ -9,12 +10,17 @@ interface SidebarProps {
     onOpenRecurring: () => void;
     theme: string;
     onToggleTheme: () => void;
+    families: Family[];
+    activeFamilyId: string | null;
+    setActiveFamilyId: (id: string | null) => void;
+    onOpenFamilyManager: () => void;
 }
 
-export function Sidebar({ activeSection, setActiveSection, session, onOpenRecurring, theme, onToggleTheme }: SidebarProps) {
+export function Sidebar({ activeSection, setActiveSection, session, onOpenRecurring, theme, onToggleTheme, families, activeFamilyId, setActiveFamilyId, onOpenFamilyManager }: SidebarProps) {
     const menuItems = [
         { id: 'home', label: 'Início', icon: Home },
         { id: 'transactions', label: 'Transações', icon: Wallet },
+        { id: 'debts', label: 'Contas a Pagar', icon: FileText },
         { id: 'goals', label: 'Metas', icon: Target },
         { id: 'reports', label: 'Relatórios', icon: PieChart },
     ];
@@ -31,11 +37,32 @@ export function Sidebar({ activeSection, setActiveSection, session, onOpenRecurr
             position: 'sticky',
             top: 0
         }}>
-            <div style={{ paddingLeft: '8px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--accent-color), #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold' }}>
+            <div style={{ paddingLeft: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--accent-color), #a855f7)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 'bold', flexShrink: 0 }}>
                     N
                 </div>
                 <h2 style={{ fontSize: '20px', fontWeight: 600 }}>Nectar's</h2>
+            </div>
+
+            {/* Workspace Switcher */}
+            <div style={{ marginBottom: '24px' }}>
+                <p style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.5px', marginBottom: '8px', fontWeight: 600 }}>Espaço Atual</p>
+                <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '12px', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <select 
+                        value={activeFamilyId || ''} 
+                        onChange={e => setActiveFamilyId(e.target.value || null)}
+                        style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '14px', flex: 1, outline: 'none', appearance: 'none', fontWeight: 500, cursor: 'pointer' }}
+                    >
+                        <option value="">👤 Pessoal</option>
+                        {families.map(f => (
+                            <option key={f.id} value={f.id}>👨‍👩‍👧‍👦 {f.name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown size={14} color="var(--text-secondary)" style={{ pointerEvents: 'none' }} />
+                </div>
+                <button onClick={onOpenFamilyManager} style={{ marginTop: '8px', background: 'transparent', border: 'none', color: 'var(--accent-color)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', padding: 0 }}>
+                    <Users size={12} /> Gerenciar Famílias
+                </button>
             </div>
 
             <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -84,7 +111,7 @@ export function Sidebar({ activeSection, setActiveSection, session, onOpenRecurr
                     }}
                 >
                     <Palette size={20} />
-                    Theme ({theme})
+                    Tema ({theme === 'fierce' ? 'Enterprise' : 'Classic'})
                 </button>
             </nav>
 
@@ -94,7 +121,9 @@ export function Sidebar({ activeSection, setActiveSection, session, onOpenRecurr
                     <p style={{ fontSize: '14px', fontWeight: 500, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {session?.user.email || 'Usuário'}
                     </p>
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Personal account</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {activeFamilyId ? families.find(f => f.id === activeFamilyId)?.name : 'Conta Pessoal'}
+                    </p>
                 </div>
             </div>
         </aside>
