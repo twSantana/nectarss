@@ -120,12 +120,15 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                                             </div>
                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                 {f.owner_id === session?.user.id && (
-                                                  <div style={{ display: 'flex', gap: '4px' }}>
                                                     <button 
                                                         onClick={async () => {
                                                             if (window.confirm('Tem certeza que deseja apagar esta família? Todos os dados vinculados a ela serão perdidos permanentemente.')) {
-                                                                await supabase.from('families').delete().eq('id', f.id);
-                                                                onFamilyCreatedOrJoined();
+                                                                const { error } = await supabase.from('families').delete().eq('id', f.id);
+                                                                if (error) {
+                                                                    alert("Ocorreu um erro ao apagar a família. Tem certeza que você colou a permissão DELETE no Supabase?\n\nErro interno: " + error.message);
+                                                                } else {
+                                                                    onFamilyCreatedOrJoined();
+                                                                }
                                                             }
                                                         }}
                                                         style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: 'var(--expense-color)', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
@@ -133,18 +136,6 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                                                     >
                                                         Excluir
                                                     </button>
-                                                    <button 
-                                                        onClick={async () => {
-                                                            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-                                                            await supabase.from('families').update({ invite_code: newCode }).eq('id', f.id);
-                                                            onFamilyCreatedOrJoined();
-                                                        }}
-                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
-                                                        title="Gerar Novo Código"
-                                                    >
-                                                        Reciclar
-                                                    </button>
-                                                  </div>
                                                 )}
                                                 <button 
                                                     onClick={() => copyToClipboard(f.invite_code || '')}
