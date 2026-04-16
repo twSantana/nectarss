@@ -31,9 +31,11 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
         if (!newFamilyName.trim() || !session?.user?.id) return;
         
         setErrorMsg('');
+        const shortCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         const { data, error } = await supabase.from('families').insert({
             name: newFamilyName,
-            owner_id: session.user.id
+            owner_id: session.user.id,
+            invite_code: shortCode
         }).select();
 
         if (error) {
@@ -59,23 +61,12 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
 
         setErrorMsg('');
         
-        // Verifique se a familia existe
-        const { data: familyObj, error: familyErr } = await supabase.from('families').select('id, name').eq('id', inviteCode).single();
-        
-        if (familyErr || !familyObj) {
-            setErrorMsg('Convite inválido ou Família não encontrada.');
-            return;
-        }
-
-        const { error } = await supabase.from('family_members').insert({
-            family_id: inviteCode,
-            user_id: session.user.id,
-            role: 'member'
-        });
+        // Chamada segura via RPC para ignorar bloqueio RLS na leitura inicial
+        const { error } = await supabase.rpc('join_family', { p_invite_code: inviteCode.trim().toUpperCase() });
 
         if (error) {
-            if (error.code === '23505') setErrorMsg('Você já faz parte desta família.');
-            else setErrorMsg(error.message);
+            if (error.code === '23505' || error.message.includes('já faz parte')) setErrorMsg('Você já faz parte desta família.');
+            else setErrorMsg(error.message || 'Convite inválido ou Família não encontrada.');
             return;
         }
 
@@ -124,16 +115,32 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                                         <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px' }}>
                                             <div>
                                                 <p style={{ fontWeight: 600, color: '#fff' }}>{f.name}</p>
-                                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>{f.owner_id === session?.user.id ? 'Você é o Administrador' : 'Membro'}</p>
+                                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>{f.owner_id === session?.user.id ? 'Administrador' : 'Membro'}</p>
+                                                <p style={{ fontSize: '12px', color: 'var(--accent-color)', marginTop: '4px', fontFamily: 'monospace' }}>Código: {f.invite_code || '---'}</p>
                                             </div>
-                                            <button 
-                                                onClick={() => copyToClipboard(f.id)}
-                                                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: '#fff', border: 'none', cursor: 'pointer' }}
-                                                title="Copiar Código de Convite"
-                                            >
-                                                {copiedId === f.id ? <Check size={14} color="var(--income-color)" /> : <Copy size={14} />}
-                                                {copiedId === f.id ? 'Copiado!' : 'Convite'}
-                                            </button>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                {f.owner_id === session?.user.id && (
+                                                    <button 
+                                                        onClick={async () => {
+                                                            const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                                                            await supabase.from('families').update({ invite_code: newCode }).eq('id', f.id);
+                                                            onFamilyCreatedOrJoined();
+                                                        }}
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'transparent', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)', cursor: 'pointer' }}
+                                                        title="Gerar Novo Código"
+                                                    >
+                                                        Reciclar
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => copyToClipboard(f.invite_code || '')}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.1)', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', color: '#fff', border: 'none', cursor: 'pointer' }}
+                                                    title="Copiar Código de Convite"
+                                                >
+                                                    {copiedId === f.invite_code ? <Check size={14} color="var(--income-color)" /> : <Copy size={14} />}
+                                                    {copiedId === f.invite_code ? 'Copiado!' : 'Convite'}
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -158,7 +165,7 @@ export function FamilyManager({ isOpen, onClose, families, session, onFamilyCrea
                         <button onClick={() => setView('list')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', textAlign: 'left', padding: 0, marginBottom: '8px' }}>← Voltar</button>
                         <div>
                             <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-secondary)' }}>Código de Convite</label>
-                            <input type="text" placeholder="Cole o código (UUID) aqui" value={inviteCode} onChange={e => setInviteCode(e.target.value)} autoFocus />
+                            <input type="text" placeholder="Cole o código (ex: AX8J2P) aqui" value={inviteCode} onChange={e => setInviteCode(e.target.value)} autoFocus />
                         </div>
                         <button onClick={handleJoin} disabled={!inviteCode.trim()}>Ingressar</button>
                     </div>

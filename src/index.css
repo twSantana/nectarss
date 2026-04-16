@@ -231,16 +231,22 @@ button:active {
   justify-content: center;
   gap: 16px;
   z-index: 100;
+  width: 100%;
 }
 
 .classic-header-actions {
-  position: absolute;
-  right: 0;
-  top: 0;
-  z-index: 110;
   display: flex;
   gap: 16px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (min-width: 1024px) {
+  .classic-header {
+    flex-direction: row;
+    justify-content: space-between;
+  }
 }
 
 .fierce-main {
