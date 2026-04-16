@@ -670,6 +670,13 @@ function App() {
           onDelete={handleDeleteRecurring}
         />
         <SupportButton />
+        <FamilyManager 
+          isOpen={isFamilyManagerOpen} 
+          onClose={() => setIsFamilyManagerOpen(false)} 
+          families={families} 
+          session={session} 
+          onFamilyCreatedOrJoined={fetchFamilies} 
+        />
       </div>
     );
   }
@@ -695,6 +702,13 @@ function App() {
              <option value="">👤 Espaço Pessoal</option>
              {families.map(f => <option key={f.id} value={f.id}>👨‍👩‍👧‍👦 {f.name}</option>)}
           </select>
+          <button
+            onClick={() => setIsFamilyManagerOpen(true)}
+            style={{ padding: '8px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            title="Gerenciar Famílias"
+          >
+            ⚙️
+          </button>
           <button
             onClick={() => setTheme(theme === 'classic' ? 'fierce' : 'classic')}
             className="theme-toggle-btn"
