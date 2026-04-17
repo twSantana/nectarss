@@ -415,6 +415,7 @@ function App() {
     };
 
     const { data, error } = await supabase.from('recurring_transactions').insert(dbTemplate).select();
+    if (error) alert("Erro ao criar transação recorrente: " + error.message);
     if (data && data[0] && !error) {
       const t = data[0];
       setRecurringTransactions(prev => [...prev, {
@@ -435,6 +436,7 @@ function App() {
   const handleAddBudget = async (budget: Omit<any, 'id'>) => {
     if (!session?.user?.id) return;
     const { data, error } = await supabase.from('budgets').insert({ ...budget, user_id: session.user.id, family_id: activeFamilyId || null }).select();
+    if (error) alert("Erro ao criar Orçamento: " + error.message);
     if (data && data[0] && !error) setBudgets(prev => [...prev, data[0]]);
   };
 
@@ -451,6 +453,7 @@ function App() {
   const handleAddSavingsGoal = async (goal: Omit<any, 'id' | 'current_amount'>) => {
     if (!session?.user?.id) return;
     const { data, error } = await supabase.from('savings_goals').insert({ ...goal, current_amount: 0, user_id: session.user.id, family_id: activeFamilyId || null }).select();
+    if (error) alert("Erro ao salvar meta (Consulte seu Supabase SQL): " + error.message);
     if (data && data[0] && !error) setSavingsGoals(prev => [...prev, data[0]]);
   };
 
