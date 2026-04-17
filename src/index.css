@@ -289,3 +289,15 @@ button:active {
     margin-top: 16px;
   }
 }
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .hide-on-print {
+    display: none !important;
+  }
+  .printable-report {
+    display: block !important;
+  }
+}
